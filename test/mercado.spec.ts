@@ -121,12 +121,12 @@ describe('API Mercado', () => {
           .spec()
           .post(`${apiBaseUrl}/${marketId}/produtos/hortifruit/frutas`)
           .withJson({
-            nome: 'Kiwi',
+            nome: 'Banana',
             valor: 20
           })
           .expectStatus(StatusCodes.CREATED)
       ).body.product_item.id;
-      console.log(`Fruta 'Kiwi' adicionada ao Mercado ID ${marketId}.`);
+      console.log(`Fruta 'Banana' adicionada ao Mercado ID ${marketId}.`);
     });
 
     it('Buscar Frutas dos Produtos do Mercado', async () => {
@@ -163,12 +163,12 @@ describe('API Mercado', () => {
           .spec()
           .post(`${apiBaseUrl}/${marketId}/produtos/hortifruit/legumes`)
           .withJson({
-            nome: 'Pepino',
+            nome: 'Alface',
             valor: 20
           })
           .expectStatus(StatusCodes.CREATED)
       ).body.product_item.id;
-      console.log(`Legume 'Pepino' adicionado ao Mercado ID ${marketId}.`);
+      console.log(`Legume 'Alface' adicionado ao Mercado ID ${marketId}.`);
     });
 
     it('Buscar Legumes dos Produtos do Mercado', async () => {

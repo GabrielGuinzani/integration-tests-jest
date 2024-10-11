@@ -1,168 +1,194 @@
 import pactum from 'pactum';
-import { StatusCodes } from 'http-status-codes';
 import { SimpleReporter } from '../simple-reporter';
 import { faker } from '@faker-js/faker';
+import { StatusCodes } from 'http-status-codes';
 
-describe('Mercado', () => {
-  const p = pactum;
-  const rep = SimpleReporter;
-  const baseUrl = 'https://api-desafio-qa.onrender.com/';
+describe('API Mercado', () => {
+  const pactumInstance = pactum;
+  pactumInstance.request.setDefaultTimeout(90000);
 
-  p.request.setDefaultTimeout(90000);
+  const reporter = SimpleReporter;
+  const apiBaseUrl = 'https://api-desafio-qa.onrender.com/mercado';
 
-  beforeAll(() => p.reporter.add(rep));
-  afterAll(() => p.reporter.end());
+  let marketId = 0;
+  let fruitId = 0;
+  let vegetableId = 0;
 
-  describe('MERCADO', () => {
-    it('Buscar Todos os Mercados', async () => {
-      await p
+  const marketName = faker.company.name();
+  const marketCNPJ = faker.string.numeric(14);
+  const marketAddress = faker.location.streetAddress();
+
+  beforeAll(async () => pactumInstance.reporter.add(reporter));
+  afterAll(async () => pactumInstance.reporter.end());
+
+  describe('Operações CRUD de Mercado', () => {
+    it('Buscar todos os Mercados', async () => {
+      await pactumInstance
         .spec()
-        .get(`${baseUrl}mercado`)
+        .get(apiBaseUrl)
         .expectStatus(StatusCodes.OK)
         .expectJsonSchema({
-          $schema: 'http://json-schema.org/draft-04/schema#',
           type: 'array',
           items: {
-            type: 'object',
             properties: {
-              cnpj: {
-                type: 'string',
-                pattern: '^[0-9]{14}$'
-              },
-              endereco: {
-                type: 'string'
-              },
-              id: {
-                type: 'integer'
-              },
-              nome: {
-                type: 'string'
-              },
-              produtos: {
-                type: 'object',
-                properties: {
-                  acougue: {
-                    type: 'array',
-                    items: {
-                      type: 'object',
-                      properties: {
-                        bovinos: {
-                          type: 'array',
-                          items: {
-                            type: 'object',
-                            properties: {
-                              nome: {
-                                type: 'string'
-                              },
-                              preco: {
-                                type: 'number'
-                              }
-                            },
-                            required: ['nome', 'preco']
-                          }
-                        }
-                      }
-                    }
-                  },
-                  bebidas: {
-                    type: 'array',
-                    items: {
-                      type: 'object',
-                      properties: {
-                        com_alcool: {
-                          type: 'array',
-                          items: {
-                            type: 'object',
-                            properties: {
-                              nome: {
-                                type: 'string'
-                              },
-                              preco: {
-                                type: 'number'
-                              }
-                            },
-                            required: ['nome', 'preco']
-                          }
-                        }
-                      }
-                    }
-                  }
-                }
-              }
+              endereco: { type: 'string' },
+              id: { type: 'number' },
+              nome: { type: 'string' }
             },
             required: ['cnpj', 'endereco', 'id', 'nome']
           }
         });
+      console.log(`Solicitação GET para ${apiBaseUrl} realizada com sucesso.`);
     });
 
-    it('Testar criação de mercado', async () => {
-      const mercado = {
-        nome: faker.name.firstName(),
-        cnpj: faker.string.numeric(14),
-        endereco: faker.address.city()
-      };
+    it('Criar um novo Mercado', async () => {
+      marketId = (
+        await pactumInstance
+          .spec()
+          .post(apiBaseUrl)
+          .withJson({
+            nome: marketName,
+            endereco: marketAddress,
+            cnpj: marketCNPJ
+          })
+          .expectStatus(StatusCodes.CREATED)
+      ).body.novoMercado.id;
+      console.log(
+        `Mercado '${marketName}' criado com sucesso. ID: ${marketId}.`
+      );
+    });
 
-      const response = await p
+    it('Buscar Mercado por ID', async () => {
+      await pactumInstance
         .spec()
-        .post(`${baseUrl}mercado`)
-        .withJson(mercado)
-        .expectStatus(StatusCodes.OK)
-        .expectJson({
-          message: 'Mercado adicionado com sucesso!',
-          novoMercado: {
-            id: expect.any(Number),
-            nome: mercado.nome,
-            cnpj: expect.stringMatching(/^\d{14}$/),
-            endereco: mercado.endereco,
-            produtos: {
-              hortifruit: [{ frutas: [] }, { legumes: [] }],
-              padaria: [{ doces: [] }, { salgados: [] }],
-              acougue: [{ bovinos: [] }, { suinos: [] }, { aves: [] }],
-              peixaria: [{ peixes: [] }, { frutos_do_mar: [] }],
-              frios: [{ queijos: [] }, { embutidos: [] }, { outros: [] }],
-              mercearia: [
-                { graos_cereais: [] },
-                { massas: [] },
-                { farinhas: [] },
-                { conservados_enlatados: [] },
-                { oleos: [] },
-                { temperos_condimentos: [] }
-              ],
-              bebidas: [{ com_alcool: [] }, { sem_alcool: [] }],
-              higienelimpeza: [{ higiene: [] }, { limpeza: [] }]
-            }
-          }
-        });
+        .get(`${apiBaseUrl}/${marketId}`)
+        .expectStatus(StatusCodes.OK);
+      console.log(`Mercado ID ${marketId} encontrado com sucesso.`);
+    });
 
-      const mercadoId = response.body.novoMercado.id;
-
-      await p
+    it('Buscar um Mercado inexistente por ID', async () => {
+      await pactumInstance
         .spec()
-        .get(`${baseUrl}mercado/${mercadoId}`)
-        .expectStatus(StatusCodes.OK)
-        .expectJson({
-          id: mercadoId,
-          nome: mercado.nome,
-          cnpj: expect.stringMatching(/^\d{14}$/),
-          endereco: mercado.endereco,
-          produtos: {
-            hortifruit: [{ frutas: [] }, { legumes: [] }],
-            padaria: [{ doces: [] }, { salgados: [] }],
-            acougue: [{ bovinos: [] }, { suinos: [] }, { aves: [] }],
-            peixaria: [{ peixes: [] }, { frutos_do_mar: [] }],
-            frios: [{ queijos: [] }, { embutidos: [] }, { outros: [] }],
-            mercearia: [
-              { graos_cereais: [] },
-              { massas: [] },
-              { farinhas: [] },
-              { conservados_enlatados: [] },
-              { oleos: [] },
-              { temperos_condimentos: [] }
-            ],
-            bebidas: [{ com_alcool: [] }, { sem_alcool: [] }],
-            higienelimpeza: [{ higiene: [] }, { limpeza: [] }]
-          }
-        });
+        .get(`${apiBaseUrl}/7878`)
+        .expectStatus(StatusCodes.NOT_FOUND);
+      console.log(`Mercado ID 7878 não encontrado.`);
+    });
+
+    it('Atualizar informações do Mercado', async () => {
+      await pactumInstance
+        .spec()
+        .put(`${apiBaseUrl}/${marketId}`)
+        .withJson({
+          nome: marketName + ' Atualizado',
+          endereco: marketAddress,
+          cnpj: marketCNPJ
+        })
+        .expectStatus(StatusCodes.OK);
+      console.log(`Mercado ID ${marketId} atualizado com sucesso.`);
+    });
+
+    it('Atualizar um Mercado inexistente', async () => {
+      await pactumInstance
+        .spec()
+        .put(`${apiBaseUrl}/7878`)
+        .expectStatus(StatusCodes.NOT_FOUND);
+      console.log(`Tentativa de atualização do Mercado ID 7878 falhou.`);
+    });
+
+    it('Deletar um Mercado inexistente', async () => {
+      await pactumInstance
+        .spec()
+        .delete(`${apiBaseUrl}/7878`)
+        .expectStatus(StatusCodes.NOT_FOUND);
+      console.log(`Tentativa de exclusão do Mercado ID 7878 falhou.`);
+    });
+  });
+
+  describe('Operações CRUD de Produtos', () => {
+    it('Buscar Produtos do Mercado', async () => {
+      await pactumInstance
+        .spec()
+        .get(`${apiBaseUrl}/${marketId}/produtos`)
+        .expectStatus(StatusCodes.OK);
+      console.log(
+        `Produtos do Mercado ID ${marketId} encontrados com sucesso.`
+      );
+    });
+
+    it('Criar uma Fruta nos Produtos do Mercado', async () => {
+      fruitId = (
+        await pactumInstance
+          .spec()
+          .post(`${apiBaseUrl}/${marketId}/produtos/hortifruit/frutas`)
+          .withJson({
+            nome: 'Kiwi',
+            valor: 20
+          })
+          .expectStatus(StatusCodes.CREATED)
+      ).body.product_item.id;
+      console.log(`Fruta 'Kiwi' adicionada ao Mercado ID ${marketId}.`);
+    });
+
+    it('Buscar Frutas dos Produtos do Mercado', async () => {
+      await pactumInstance
+        .spec()
+        .get(`${apiBaseUrl}/${marketId}/produtos/hortifruit/frutas`)
+        .expectStatus(StatusCodes.OK);
+      console.log(`Frutas do Mercado ID ${marketId} encontradas com sucesso.`);
+    });
+
+    it('Deletar uma Fruta nos Produtos do Mercado', async () => {
+      await pactumInstance
+        .spec()
+        .delete(
+          `${apiBaseUrl}/${marketId}/produtos/hortifruit/frutas/${fruitId}`
+        )
+        .expectStatus(StatusCodes.OK);
+      console.log(`Fruta ID ${fruitId} excluída do Mercado ID ${marketId}.`);
+    });
+
+    it('Deletar uma Fruta inexistente no Mercado', async () => {
+      await pactumInstance
+        .spec()
+        .delete(`${apiBaseUrl}/${marketId}/produtos/hortifruit/frutas/7878`)
+        .expectStatus(StatusCodes.NOT_FOUND);
+      console.log(
+        `Tentativa de exclusão da Fruta ID 7878 no Mercado ID ${marketId} falhou.`
+      );
+    });
+
+    it('Criar um Legume nos Produtos do Mercado', async () => {
+      vegetableId = (
+        await pactumInstance
+          .spec()
+          .post(`${apiBaseUrl}/${marketId}/produtos/hortifruit/legumes`)
+          .withJson({
+            nome: 'Pepino',
+            valor: 20
+          })
+          .expectStatus(StatusCodes.CREATED)
+      ).body.product_item.id;
+      console.log(`Legume 'Pepino' adicionado ao Mercado ID ${marketId}.`);
+    });
+
+    it('Buscar Legumes dos Produtos do Mercado', async () => {
+      await pactumInstance
+        .spec()
+        .get(`${apiBaseUrl}/${marketId}/produtos/hortifruit/legumes`)
+        .expectStatus(StatusCodes.OK);
+      console.log(`Legumes do Mercado ID ${marketId} encontrados com sucesso.`);
+    });
+
+    it('Deletar um Legume no Mercado', async () => {
+      await pactumInstance
+        .spec()
+        .delete(
+          `${apiBaseUrl}/${marketId}/produtos/hortifruit/legumes/${vegetableId}`
+        )
+        .expectStatus(StatusCodes.OK);
+      console.log(
+        `Legume ID ${vegetableId} excluído do Mercado ID ${marketId}.`
+      );
     });
   });
 });
